@@ -1,0 +1,23 @@
+services:
+  api:
+    build: .
+    ports:
+      - "5000:5000"
+    networks:
+      - red_interna
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    command: http api:5000
+    ports:
+      - "4040:4040"
+    depends_on:
+      - api
+    networks:
+      - red_interna
+
+networks:
+  red_interna:
+    driver: bridge
