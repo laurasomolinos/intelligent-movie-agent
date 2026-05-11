@@ -1,0 +1,38 @@
+services:
+
+  conciertos:
+    build: .
+    ports:
+      - "5001:5001"
+    environment:
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - TICKETMASTER_API_KEY=${TICKETMASTER_API_KEY}
+      - GENEROS_FAVORITOS=${GENEROS_FAVORITOS:-rock}
+    networks:
+      - red_conciertos
+
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflow.json:/workflows/workflow.json
+      - ./n8n/init.sh:/init.sh
+    entrypoint: ["sh", "/init.sh"]
+    depends_on:
+      - conciertos
+    networks:
+      - red_conciertos
+
+networks:
+  red_conciertos:
+    driver: bridge
+
+volumes:
+  n8n_data:
