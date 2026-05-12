@@ -1,3 +1,22 @@
+1)  scrapper en python que, dada una película, obtenga un diccionario con la
+información de la misma + parametros por consola (imdb_scrapper.py, proceso con: debug_save_html.py, imdb_scrapper_base.py)
+
+2) skill de Alexa que utilizará el scrapper anterior para, cuando el usuario le
+pida algún dato de una película  + video (apy.py, lambda_function.py, imdb_scrapper.py)
+
+3) scrapper que obtenga la cartelera de cine de Madrid, integre esta información con la proporcionada por el scrapper anterior. Este scrapper se ejecutará todos los lunes a las 9:00 (usar cron) y enviará el resultado por telegram o por mail.  (cartelera.py, api.py, imdb_scrapper.py, telegram_bot, siguiendo los pasos del scrpper de imdb)
+
+4) Opcional: perfil del usuario que valore cada género, filtre la nota por
+ese perfil (cartelera.py)
+
+5) opcional: Creación de workflow en N8N
+✱ Workflow con N8N para implementar un guardarraíl
+
+6) opcional: Un agente que se ejecute todos los lunes y obtenga los conciertos de la
+semana
+✓ Que filtre por los artistas que interesan al usuario y ponga un mail o
+telegram con el resultado (carpeta conciertos)
+
 Archivos importantes:
 
 - pruebas.ipynb:  explica el proceso de todo el trabajo
@@ -6,6 +25,8 @@ Archivos importantes:
 - imdb_scrapper.py:  script que hace todo el proceso de sacar la información de las peliculas de imdb, si se ejecuta por consola y se le pide una pelicula concreta la busca en la pagina de imdb y devuelve los datos que queremos (se pueden añadir parametros por consola)
 - lambda_function.py:  El código de Alexa. Se sube a AWS Lambda y conecta Alexa con la API Flask a través de ngrok. -> https://developer.amazon.com/alexa/console/ask/test/amzn1.ask.skill.e033956a-2500-4297-af2c-94a612f22f8c/development/es_ES/
 - telegram_bot.py: El bot de Telegram. Si al bot le decimos: /nota Interstellar, consulta API Flask y nos devuelve los datos.
+
+  
 Para la API:
 -  api.py:  La API Flask. Recibe peticiones HTTP con el título de una película, llama al scrapper, guarda en caché y devuelve el JSON.
 - Dockerfile:  Instrucciones para construir el contenedor de la API Flask con Playwright y Chromium incluidos.
@@ -19,6 +40,6 @@ cartelera.py:  Scrapper de ecartelera.com. Obtiene las películas en cartelera e
 Se necesitaria un archivo .env para inicializar grok que contenga el token de la api
 
 Para arrancarlo necesitamos: 
-1. Docker — arranca la API Flask + ngrok. En la terminal de VS Code dentro de este proyecto:
-   docker compose up --build
+1. Docker — arranca la API Flask + ngrok (ejecutar archivo api.py) . En la terminal de VS Code dentro de este proyecto:
+   docker compose up --build, ya se puede acceder a la url para buscar peliculas
   
