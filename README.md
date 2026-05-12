@@ -40,6 +40,6 @@ cartelera.py:  Scrapper de ecartelera.com. Obtiene las películas en cartelera e
 Se necesitaria un archivo .env para inicializar grok que contenga el token de la api
 
 Para arrancarlo necesitamos: 
-1. Docker — arranca la API Flask + ngrok. En la terminal de VS Code dentro de este proyecto:
-   docker compose up --build
+1. Docker — arranca la API Flask + ngrok (ejecutar archivo api.py) . En la terminal de VS Code dentro de este proyecto:
+   docker compose up --build, ya se puede acceder a la url para buscar peliculas
   
