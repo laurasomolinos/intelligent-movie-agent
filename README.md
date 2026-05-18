@@ -23,7 +23,7 @@ Archivos importantes:
 - debug_save_html.py:  (NO NECESARIO PARA FUNCIONAMIENTO) es el archivo con el que saque el html (debug_search.html) de la pagina para hacer el scrapping luego en imdb_scrapper_base.py (imdb_2001.html es el html concreto de una pelicula como prueba)
 - imdb_scrapper_base.py:  (no se usa ya) script de pueba para sacar los datos de una pelicula concreta con su url para ver si funcionaba teniendo en cuenta el html que sacamos con debug_save_html.py
 - imdb_scrapper.py:  script que hace todo el proceso de sacar la información de las peliculas de imdb, si se ejecuta por consola y se le pide una pelicula concreta la busca en la pagina de imdb y devuelve los datos que queremos (se pueden añadir parametros por consola)
-- lambda_function.py:  El código de Alexa. Se sube a AWS Lambda y conecta Alexa con la API Flask a través de ngrok. -> https://developer.amazon.com/alexa/console/ask/test/amzn1.ask.skill.e033956a-2500-4297-af2c-94a612f22f8c/development/es_ES/
+- lambda_function.py:  El código de Alexa. Se sube a AWS Lambda y conecta Alexa con la API Flask a través de ngrok. (dentro de carpeta alexa con video de la prueba del funcionamiento de la skill)
 - telegram_bot.py: El bot de Telegram. Si al bot le decimos: /nota Interstellar, consulta API Flask y nos devuelve los datos.
 
   
