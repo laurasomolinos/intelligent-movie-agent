@@ -1,3 +1,6 @@
+LAURA SOMOLINOS, ALEJANDRO BLANCO, ÁLVARO JIMÉNEZ
+
+
 1)  scrapper en python que, dada una película, obtenga un diccionario con la
 información de la misma + parametros por consola (imdb_scrapper.py, proceso con: debug_save_html.py, imdb_scrapper_base.py)
 
