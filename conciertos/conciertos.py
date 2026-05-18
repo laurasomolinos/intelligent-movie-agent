@@ -7,12 +7,12 @@ from datetime import datetime, timedelta
 
 import requests
 from flask import Flask, jsonify
-
+#configuramos el sistema de logs con timestamp 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-app = Flask(__name__)
+app = Flask(__name__) #creamos la aplicación de flask
 
-# ── Configuración (desde variables de entorno) ────────────────────────────────
+# ── Configuración (desde variables de entorno)
 
 TELEGRAM_TOKEN        = os.environ.get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID      = os.environ.get("TELEGRAM_CHAT_ID", "")
@@ -25,7 +25,7 @@ GENEROS_FAVORITOS = [
     if g.strip()
 ]
 
-# ── Llamada a Ticketmaster ────────────────────────────────────────────────────
+# ── Llamada a Ticketmaster
 
 def obtener_conciertos_madrid():
     """Consulta la API de Ticketmaster y devuelve conciertos de la semana en Madrid."""
@@ -80,7 +80,7 @@ def obtener_conciertos_madrid():
     return conciertos
 
 
-# ── Envío por Telegram ────────────────────────────────────────────────────────
+# ── Envío por Telegram 
 
 def enviar_telegram(mensaje):
     """Envía un mensaje por Telegram partiéndolo si supera 4096 chars."""
@@ -104,7 +104,7 @@ def enviar_telegram(mensaje):
             logging.error(f"Error enviando Telegram: {e}")
 
 
-# ── Lógica principal ──────────────────────────────────────────────────────────
+# ── Lógica principal
 
 def ejecutar():
     """Obtiene conciertos de Ticketmaster y envía el resultado por Telegram."""
@@ -153,19 +153,19 @@ def ejecutar():
     return {"ok": True, "total": len(conciertos), "conciertos": conciertos}
 
 
-# ── Endpoints HTTP ────────────────────────────────────────────────────────────
+# ── Endpoints HTTP 
 
 @app.route("/ejecutar", methods=["POST", "GET"])
 def endpoint_ejecutar():
     resultado = ejecutar()
     return jsonify(resultado)
 
-@app.route("/health", methods=["GET"])
+@app.route("/health", methods=["GET"]) #endpoint de salud
 def health():
     return jsonify({"status": "ok", "generos": GENEROS_FAVORITOS})
 
 
-# ── Arranque ──────────────────────────────────────────────────────────────────
+# ── Arranque 
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)
