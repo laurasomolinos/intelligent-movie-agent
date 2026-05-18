@@ -13,11 +13,11 @@ pida algún dato de una película  + video (apy.py, lambda_function.py, imdb_scr
 ese perfil (cartelera.py)
 
 5) opcional: Creación de workflow en N8N
-✱ Workflow con N8N para implementar un guardarraíl
+Workflow con N8N para implementar un guardarraíl
 
 6) opcional: Un agente que se ejecute todos los lunes y obtenga los conciertos de la
 semana
-✓ Que filtre por los artistas que interesan al usuario y ponga un mail o
+Que filtre por los artistas que interesan al usuario y ponga un mail o
 telegram con el resultado (carpeta conciertos)
 
 Archivos importantes:
@@ -28,7 +28,7 @@ Archivos importantes:
 - imdb_scrapper.py:  script que hace todo el proceso de sacar la información de las peliculas de imdb, si se ejecuta por consola y se le pide una pelicula concreta la busca en la pagina de imdb y devuelve los datos que queremos (se pueden añadir parametros por consola)
 - lambda_function.py:  (DENTRO DE LA CARPETA ALEXA, junto con el video demostrando el funcionamiento) El código de Alexa. Se sube a AWS Lambda y conecta Alexa con la API Flask a través de ngrok. 
 - telegram_bot.py: El bot de Telegram. Si al bot le decimos: /nota Interstellar, consulta API Flask y nos devuelve los datos.
-- cartelera.py : saca los datos de la cartelera de madrid, filtra por perfil de usuario, busca en IMDB a traves de la API y envia resultado por telegram 
+  
 OPCIONALES:
 - carpeta de conciertos con todos lo impelementado para el scrapping de conciertos y envio por telegram con uso de workflow de n8n para programar el envío de datos
 - carpeta de guardarrail impelementado en n8n 
@@ -36,11 +36,16 @@ OPCIONALES:
   
 Para la API:
 -  api.py:  La API Flask. Recibe peticiones HTTP con el título de una película, llama al scrapper, guarda en caché y devuelve el JSON.
+  
 - Dockerfile:  Instrucciones para construir el contenedor de la API Flask con Playwright y Chromium incluidos.
+  
 - docker-compose.yml: Orquesta dos contenedores: la API Flask y ngrok. Con un solo comando arranca los dos juntos. Necesario para ejecutarlo en docker
 Para correr todo esto simplemente poner docker compose up en la consola de 
+
 Para la cartelera:
-debug_cartelera.html: html guardado de la web de carteleras de madrid (NO NECESARIO PARA FUNCIONAMIENTO)
+
+debug_cartelera.html: html guardado de la web de carteleras de madrid (NO NECESARIO PARA FUNCIONAMIENTO) (en carpeta html)
+
 cartelera.py:  Scrapper de ecartelera.com. Obtiene las películas en cartelera en Madrid, consulta IMDb por cada una, filtra por tu perfil y envía el resultado por Telegram. Se ejecuta con cron los lunes.
 
 ## Arranque para el funcionamiento de todas las tareas:
