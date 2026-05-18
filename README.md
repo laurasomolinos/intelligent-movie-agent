@@ -37,9 +37,14 @@ debug_cartelera.html: html guardado de la web de carteleras de madrid (NO NECESA
 cartelera.py:  Scrapper de ecartelera.com. Obtiene las películas en cartelera en Madrid, consulta IMDb por cada una, filtra por tu perfil y envía el resultado por Telegram. Se ejecuta con cron los lunes.
 
 
-Se necesitaria un archivo .env para inicializar grok que contenga el token de la api
+## Arranque para el funcionamiento de todas las tareas:
 
-Para arrancarlo necesitamos: 
-1. Docker — arranca la API Flask + ngrok (ejecutar archivo api.py) . En la terminal de VS Code dentro de este proyecto:
-   docker compose up --build, ya se puede acceder a la url para buscar peliculas
+1. Crear .env con: NGROK_AUTHTOKEN=tu_token
+2. docker compose up --build
+3. Copiar URL de ngrok (localhost:4040) en lambda_function.py y subirla a AWS Lambda
+4. python telegram_bot.py (en terminal separada)
+5. Cron (WSL): 0 9 * * 1 python3 cartelera.py
+
+## Conversaciones LLM
+https://chatgpt.com/g/g-p-69e7414b231c81918742e99d463872d2-agente-peliculas-si/project
   
