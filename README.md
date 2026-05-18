@@ -50,3 +50,4 @@ cartelera.py:  Scrapper de ecartelera.com. Obtiene las películas en cartelera e
 
 ## Conversaciones LLM
 https://chatgpt.com/g/g-p-69e7414b231c81918742e99d463872d2-agente-peliculas-si/project
+https://claude.ai/share/d3fe6ae9-4746-403f-b690-de781001a6ad
