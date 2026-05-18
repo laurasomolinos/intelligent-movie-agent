@@ -1,0 +1,69 @@
+services:
+  api:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - api_cache:/app/cache
+    environment:
+      - CACHE_FILE=/app/cache/movies_cache.json
+    networks:
+      - red_interna
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - red_interna
+    # sin puerto expuesto al exterior, solo accesible internamente
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    command: http api:5000
+    ports:
+      - "4040:4040"
+    depends_on:
+      - api
+    networks:
+      - red_interna
+
+  n8n:
+    image: n8nio/n8n
+    ports:
+      - "5678:5678"
+    env_file:
+      - .env
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin123
+      - EXECUTIONS_TIMEOUT=90
+      - EXECUTIONS_TIMEOUT_MAX=120
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
+      - EXECUTIONS_DATA_SAVE_ON_ERROR=all
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - DB_SQLITE_POOL_SIZE=4
+      - API_BASE_URL=http://api:5000
+      - LLM_ENDPOINT=https://api.groq.com/openai/v1/chat/completions
+      - LLM_API_KEY=${LLM_API_KEY}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+    depends_on:
+      - api
+      - redis
+    networks:
+      - red_interna
+
+networks:
+  red_interna:
+    driver: bridge
+
+volumes:
+  n8n_data:
+  api_cache:

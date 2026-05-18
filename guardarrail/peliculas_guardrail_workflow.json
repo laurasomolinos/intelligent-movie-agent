@@ -1,0 +1,880 @@
+{
+  "name": "Peliculas Bot v2",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pelicula-guardrail",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wb-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "pelicula-guardrail"
+    },
+    {
+      "parameters": {
+        "functionCode": "const body = $input.first().json.body || $input.first().json;\nconst titulo = (body.titulo || '').trim();\nconst source = body.source || 'unknown';\nconst command = String(body.command || 'pelicula').trim().toLowerCase();\n\nif (!titulo) {\n  return [{ json: { valid: false, titulo: '', source, command } }];\n}\n\nconst cache_key = titulo.toLowerCase().replace(/\\s+/g, ' ').trim();\nreturn [{ json: { valid: true, titulo, source, command, cache_key, ts: new Date().toISOString() } }];"
+      },
+      "id": "fn-normalize",
+      "name": "Normalizar",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json[\"valid\"]}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-valid",
+      "name": "Titulo valido",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"error\",\"decision\":\"VALIDATION_ERROR\",\"message\":\"El titulo de la pelicula es requerido\"}"
+      },
+      "id": "rsp-error-val",
+      "name": "Responder Error Validacion",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        680,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.API_BASE_URL}}/pelicula",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "titulo",
+              "value": "={{$json[\"titulo\"]}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "http-cache",
+      "name": "Verificar Cache",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        900,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const resp = $input.first().json;\nconst ctx = $node[\"Normalizar\"].json;\nconst is_cached = !!(resp && resp.title && !resp.error);\nconst datos = is_cached ? resp : null;\nconst command = String(ctx.command || 'pelicula').toLowerCase();\n\nfunction buildReply(commandName, movie) {\n  const title = movie.title || ctx.titulo || 'Pelicula';\n  const rating = movie.rating ?? 'N/D';\n  const votes = movie.votes ?? 'N/D';\n  const director = movie.director || 'Desconocido';\n  const duration = movie.duration || 'N/D';\n  const synopsis = movie.synopsis || 'Sinopsis no disponible.';\n  const genres = Array.isArray(movie.genres) && movie.genres.length ? movie.genres.join(', ') : 'No disponible';\n  const url = movie.url || '';\n  const ai = movie.ai_recomendacion || '';\n  const aiCon = movie.ai_para_ver_con || '';\n\n  if (commandName === 'nota' || commandName === 'notas') {\n    return { status: 'ok', decision: 'CACHE_HIT', command: commandName, reply: '⭐ ' + title + ' | Nota IMDb: ' + rating + '/10' + (url ? ' | IMDb: ' + url : ''), datos: { title, rating, url } };\n  }\n  if (commandName === 'director') {\n    return { status: 'ok', decision: 'CACHE_HIT', command: commandName, reply: '🎬 ' + title + ' | Director: ' + director + (url ? ' | IMDb: ' + url : ''), datos: { title, director, url } };\n  }\n  if (commandName === 'sinopsis') {\n    return { status: 'ok', decision: 'CACHE_HIT', command: commandName, reply: '📖 ' + title + ' | ' + synopsis + (url ? ' | IMDb: ' + url : ''), datos: { title, synopsis, url } };\n  }\n  if (commandName === 'duracion') {\n    return { status: 'ok', decision: 'CACHE_HIT', command: commandName, reply: '⏱ ' + title + ' | Duracion: ' + duration + (url ? ' | IMDb: ' + url : ''), datos: { title, duration, url } };\n  }\n  if (commandName === 'votos') {\n    return { status: 'ok', decision: 'CACHE_HIT', command: commandName, reply: '🗳 ' + title + ' | Votos: ' + votes + (url ? ' | IMDb: ' + url : ''), datos: { title, votes, url } };\n  }\n\n  return { status: 'ok', decision: 'CACHE_HIT', command: commandName, reply: '🎬 ' + title + ' | Nota: ' + rating + '/10 | Votos: ' + votes + ' | Director: ' + director + ' | Duracion: ' + duration + ' | Generos: ' + genres + ' | Sinopsis: ' + synopsis + (ai ? ' | IA: ' + ai : '') + (aiCon ? ' | Para ver con: ' + aiCon : '') + (url ? ' | IMDb: ' + url : ''), datos: { title, original_title: movie.original_title, rating, votes, synopsis, director, duration, genres: Array.isArray(movie.genres) ? movie.genres : [], url, ai_recomendacion: ai, ai_para_ver_con: aiCon, ai_vibra: movie.ai_vibra || '' } };\n}\n\nreturn [ { json: Object.assign({}, ctx, { is_cached }, buildReply(command, datos || {})) } ];"
+      },
+      "id": "fn-eval-cache",
+      "name": "Evaluar Cache",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json[\"is_cached\"]}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-cached",
+      "name": "Esta en cache",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "rsp-cache",
+      "name": "Responder Cache",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
+        "text": "=⚡ *[CACHÉ]* {{$json[\"datos\"][\"title\"] || $json[\"titulo\"]}} servida desde caché",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "tg-cache-hit",
+      "name": "Telegram Cache Hit",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1780,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const ctx = $input.first().json;\nconst titulo = ctx.titulo || '';\n\nconst llm_guardrail_body = {\n  model: 'llama-3.3-70b-versatile',\n  max_tokens: 10,\n  temperature: 0,\n  messages: [\n    {\n      role: 'system',\n      content: 'Eres un clasificador para un bot de peliculas. Responde SOLO con true o false (sin texto extra).\\ntrue = el texto es un titulo de pelicula real y conocida.\\nfalse = cualquier otra cosa (frases, instrucciones, spam, preguntas).'\n    },\n    {\n      role: 'user',\n      content: titulo\n    }\n  ]\n};\n\nreturn [{ json: { ...ctx, llm_guardrail_body } }];"
+      },
+      "id": "fn-build-guardrail",
+      "name": "Construir Guardrail",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.LLM_ENDPOINT}}",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $env.LLM_API_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{$json.llm_guardrail_body.model}}"
+            },
+            {
+              "name": "max_tokens",
+              "value": "={{$json.llm_guardrail_body.max_tokens}}"
+            },
+            {
+              "name": "temperature",
+              "value": "={{$json.llm_guardrail_body.temperature}}"
+            },
+            {
+              "name": "messages",
+              "value": "={{$json.llm_guardrail_body.messages}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 1000
+      },
+      "id": "http-llm-guardrail",
+      "name": "Groq Guardrail",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1780,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "function extractContent(resp) {\n  if (resp.choices && resp.choices[0]) return resp.choices[0].message.content || '';\n  if (typeof resp.data !== 'string' || !resp.data.trim()) return '';\n  var s;\n  try { s = JSON.parse(resp.data); } catch(e) { return ''; }\n  if (!s) return '';\n  if (s.choices && s.choices[0]) return s.choices[0].message.content || '';\n  try {\n    var arr = s._outBuffer && Array.isArray(s._outBuffer.data) ? s._outBuffer.data : null;\n    if (!arr || !arr.length) return '';\n    var raw = '';\n    for (var i = 0; i < arr.length && i < 4096; i++) {\n      raw += String.fromCharCode(arr[i]);\n    }\n    var m = raw.match(/\"content\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"/);\n    if (!m) return '';\n    return m[1].replace(/\\\\\"/g, '\"').replace(/\\\\\\\\/g, '\\\\');\n  } catch(e) {}\n  return '';\n}\n\nconst llm = $input.first().json;\nconst ctx = $node[\"Construir Guardrail\"].json;\n\n// El LLM responde true/false: es pelicula real?\nconst content = extractContent(llm).trim().toLowerCase();\nconst real = content === 'true' || content.startsWith('true');\n\n// Deteccion de inyeccion por keywords con normalizacion Unicode\n// Elimina tildes y convierte a minusculas para cubrir variantes como\n// olvida/olvidas/olvidate/olvídate, ignora/ignorar/IGNORA, actúa/actua\nfunction normalizeStr(s) {\n  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');\n}\nconst tituloNorm = normalizeStr(ctx.titulo || '');\nconst injectionRoots = [\n  'ignor','olvid','forget','override','jailbreak',\n  'actua como','act as','ahora eres','now you are',\n  'sin restricciones','instrucciones anterior',\n  'system prompt','haz lo que','nuevo rol','new role'\n];\nconst injection = injectionRoots.some(kw => tituloNorm.includes(normalizeStr(kw)));\n\nconst guardrail_ok = real && !injection;\n\nreturn [{ json: { ...ctx, guardrail_real: real, guardrail_injection: injection, guardrail_ok } }];"
+      },
+      "id": "fn-parse-guardrail",
+      "name": "Parsear Guardrail",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json[\"guardrail_ok\"]}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-guardrail-ok",
+      "name": "Guardrail OK",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        2220,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'error', decision: 'GUARDRAIL_REJECT', message: $json['guardrail_injection'] ? 'Contenido no permitido detectado' : 'Titulo no reconocido como pelicula', titulo: $json['titulo'] }) }}"
+      },
+      "id": "rsp-guardrail-ko",
+      "name": "Responder Guardrail Rechazado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2440,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
+        "text": "=🚫 *[GUARDRAIL]* Titulo rechazado antes del scrape\n\n*{{$json[\"titulo\"]}}*\nRazon: {{$json[\"guardrail_real\"] === false ? 'No reconocido como pelicula' : 'Riesgo ' + $json[\"guardrail_riesgo\"]}}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "tg-guardrail-ko",
+      "name": "Telegram Guardrail Rechazado",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        2660,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.API_BASE_URL}}/pelicula/scrape",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "titulo",
+              "value": "={{$json[\"titulo\"]}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 3000
+      },
+      "id": "http-scrape",
+      "name": "Scrape IMDb",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const scrape = $input.first().json;\nconst ctx = $node[\"Normalizar\"].json;\n\nif (scrape.error || (!scrape.title && !scrape.titulo)) {\n  return [{ json: {\n    ...ctx,\n    scrape_ok: false,\n    movie: null,\n    error_msg: scrape.error || 'Pelicula no encontrada en IMDb'\n  }}];\n}\n\nconst title = scrape.title || scrape.titulo || '';\nconst rating = parseFloat(scrape.rating) || 0;\nconst synopsis = (scrape.synopsis || '').substring(0, 500);\nconst director = scrape.director || '';\nconst genres = Array.isArray(scrape.genres) ? scrape.genres : [];\nconst votes = parseInt(scrape.votes) || 0;\nconst duration = scrape.duration || '';\nconst url = scrape.url || '';\nconst original_title = scrape.original_title || title;\n\nconst prompt = 'Eres un critico de cine experto. Analiza esta pelicula y escribe una recomendacion personal, detallada y unica.\\n\\nFICHA:\\nTitulo: ' + title + '\\nDirector: ' + director + '\\nRating IMDb: ' + rating + '/10 (' + votes + ' votos)\\nGeneros: ' + genres.join(', ') + '\\nSinopsis: ' + synopsis + '\\n\\nINSTRUCCIONES:\\n- Cita al menos un detalle concreto de la ficha: un personaje, un giro de trama, el estilo del director o el genero\\n- Adapta el tono a la nota: entusiasta si rating >= 7.5, critico si rating < 6, honesto si esta entre 6 y 7.5\\n- Nunca empieces igual que otras peliculas, varia el inicio de la frase\\n- Maximo 200 caracteres en recomendacion\\n- para_ver_con debe reflejar el tono emocional de la pelicula\\n\\nResponde SOLO con JSON valido sin texto extra:\\n{\"recomendacion\": \"texto concreto y variado en espanol, max 200 chars\", \"para_ver_con\": \"solo / pareja / amigos / familia\", \"vibra\": \"emoji\"}';\n\nconst llm_body = JSON.stringify({\n  model: 'llama-3.3-70b-versatile',\n  max_tokens: 400,\n  temperature: 0.85,\n  messages: [{ role: 'user', content: prompt }]\n});\n\nreturn [{ json: {\n  ...ctx,\n  scrape_ok: true,\n  movie: { title, original_title, rating, votes, synopsis, director, duration, genres, url },\n  llm_body\n} }];"
+      },
+      "id": "fn-process-scrape",
+      "name": "Procesar Scrape",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        2660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json[\"scrape_ok\"]}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-scrape-ok",
+      "name": "Scrape exitoso",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        2880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.LLM_ENDPOINT}}",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $env.LLM_API_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{$json.llm_body.model}}"
+            },
+            {
+              "name": "max_tokens",
+              "value": "={{$json.llm_body.max_tokens}}"
+            },
+            {
+              "name": "temperature",
+              "value": "={{$json.llm_body.temperature}}"
+            },
+            {
+              "name": "messages",
+              "value": "={{$json.llm_body.messages}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 25000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 2000
+      },
+      "id": "http-llm",
+      "name": "Groq LLM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        3100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "function extractLLMContent(resp) {\n  if (resp.choices && resp.choices[0]) return resp.choices[0].message.content || '';\n  if (typeof resp.data !== 'string' || !resp.data.trim()) return '';\n  var s;\n  try { s = JSON.parse(resp.data); } catch(e) { return ''; }\n  if (!s) return '';\n  if (s.choices && s.choices[0]) return s.choices[0].message.content || '';\n  try {\n    var arr = s._outBuffer && Array.isArray(s._outBuffer.data) ? s._outBuffer.data : null;\n    if (!arr || !arr.length) return '';\n    var raw = '';\n    for (var i = 0; i < arr.length && i < 4096; i++) {\n      raw += String.fromCharCode(arr[i]);\n    }\n    var m = raw.match(/\"content\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"/);\n    if (!m) return '';\n    return m[1].replace(/\\\\\"/g, '\"').replace(/\\\\\\\\/g, '\\\\');\n  } catch(e) {}\n  return '';\n}\n\nconst llm = $input.first().json;\nconst ctx = $node[\"Procesar Scrape\"].json;\n\nif (!ctx.scrape_ok) {\n  return [{ json: {\n    ...ctx,\n    llm_result: { recomendacion: 'No se encontro esta pelicula.', para_ver_con: 'nadie', vibra: '❌' },\n    approved: false\n  }}];\n}\n\n\n\nfunction fallbackRecomendacion(movie) {\n  const title = movie && movie.title ? movie.title : 'Esta pelicula';\n  const rating = Number(movie && movie.rating ? movie.rating : 0);\n  const director = movie && movie.director ? movie.director : '';\n  const genreList = movie && Array.isArray(movie.genres) ? movie.genres : [];\n  const genre = genreList.length ? genreList[0] : 'cine';\n  const idx = title.length % 3;\n  if (rating >= 8) {\n    const opts = [\n      director ? `${director} esta en su mejor version con ${title}, una obra que deja huella.` : `Con ${rating}/10, ${title} es de las que no se olvidan facil.`,\n      `${title} justifica cada valoracion: ${genre} a la altura de los grandes.`,\n      director ? `Lo que logra ${director} en ${title} es dificil de ignorar: ${genre} de primera.` : `${title} demuestra por que el buen ${genre} sigue siendo necesario.`\n    ];\n    return opts[idx];\n  }\n  if (rating >= 6.5) {\n    const opts = [\n      `Si te gusta el ${genre}, ${title} ofrece lo que promete sin grandes sorpresas.`,\n      `${title} no reinventa el ${genre} pero lo ejecuta con oficio${director ? ', firma de ' + director : ''}.`,\n      `Un ${rating}/10 que refleja bien ${title}: solida, sin ser imprescindible.`\n    ];\n    return opts[idx];\n  }\n  const opts = [\n    `${title} tiene sus momentos de ${genre} pero en conjunto no termina de convencer.`,\n    `Con un ${rating}/10, ${title} es para fans del ${genre} con paciencia${director ? ' o seguidores de ' + director : ''}.`,\n    `Irregular pero no sin interes: ${title} puede sorprender si bajas las expectativas.`\n  ];\n  return opts[idx];\n}\n\nlet recomendacion = fallbackRecomendacion(ctx.movie);\nlet para_ver_con = 'amigos';\nlet vibra = '🎬';\n\ntry {\n  const content = extractLLMContent(llm);\n  const match = content.match(/\\{[\\s\\S]*?\\}/);\n  if (match) {\n    const p = JSON.parse(match[0]);\n    if (p.recomendacion) recomendacion = String(p.recomendacion);\n    if (p.para_ver_con) para_ver_con = String(p.para_ver_con);\n    if (p.vibra) vibra = String(p.vibra);\n  } else if (content && content.trim()) {\n    recomendacion = content.replace(/```[\\s\\S]*?```/g, '').trim().substring(0, 200) || recomendacion;\n  }\n} catch(e) {}\n\nreturn [{ json: {\n  ...ctx,\n  llm_result: { recomendacion, para_ver_con, vibra },\n  approved: true\n} }];"
+      },
+      "id": "fn-parse-llm",
+      "name": "Parsear LLM",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        3320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{!!$json.movie && !!$json.movie.title}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-approve",
+      "name": "Aprobar",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        3540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const d = $input.first().json;\nconst m = d.movie || {};\nconst ai = d.llm_result || {};\nconst command = String(d.command || 'pelicula').toLowerCase();\n\nconst datos = {\n  title: m.title || d.titulo || 'Pelicula',\n  original_title: m.original_title || m.title || d.titulo || 'Pelicula',\n  rating: m.rating ?? 0,\n  votes: m.votes ?? 0,\n  synopsis: m.synopsis || '',\n  director: m.director || 'Desconocido',\n  duration: m.duration || 'N/D',\n  genres: Array.isArray(m.genres) ? m.genres : [],\n  url: m.url || '',\n  ai_recomendacion: ai.recomendacion || '',\n  ai_para_ver_con: ai.para_ver_con || '',\n  ai_vibra: ai.vibra || ''\n};\n\nfunction buildReply(commandName, movie) {\n  const title = movie.title;\n  const rating = movie.rating;\n  const votes = movie.votes;\n  const director = movie.director || 'Desconocido';\n  const duration = movie.duration || 'N/D';\n  const synopsis = movie.synopsis || 'Sinopsis no disponible.';\n  const genres = Array.isArray(movie.genres) && movie.genres.length ? movie.genres.join(', ') : 'No disponible';\n  const url = movie.url || '';\n\n  if (commandName === 'nota' || commandName === 'notas') {\n    return { status: 'ok', decision: 'AUTO_APPROVE', command: commandName, reply: '⭐ ' + title + ' | Nota IMDb: ' + rating + '/10' + (url ? ' | IMDb: ' + url : ''), datos: { title, rating, url } };\n  }\n  if (commandName === 'director') {\n    return { status: 'ok', decision: 'AUTO_APPROVE', command: commandName, reply: '🎬 ' + title + ' | Director: ' + director + (url ? ' | IMDb: ' + url : ''), datos: { title, director, url } };\n  }\n  if (commandName === 'sinopsis') {\n    return { status: 'ok', decision: 'AUTO_APPROVE', command: commandName, reply: '📖 ' + title + ' | ' + synopsis + (url ? ' | IMDb: ' + url : ''), datos: { title, synopsis, url } };\n  }\n  if (commandName === 'duracion') {\n    return { status: 'ok', decision: 'AUTO_APPROVE', command: commandName, reply: '⏱ ' + title + ' | Duracion: ' + duration + (url ? ' | IMDb: ' + url : ''), datos: { title, duration, url } };\n  }\n  if (commandName === 'votos') {\n    return { status: 'ok', decision: 'AUTO_APPROVE', command: commandName, reply: '🗳 ' + title + ' | Votos: ' + votes + (url ? ' | IMDb: ' + url : ''), datos: { title, votes, url } };\n  }\n\n  return { status: 'ok', decision: 'AUTO_APPROVE', command: commandName, reply: '🎬 ' + title + ' | Nota: ' + rating + '/10 | Votos: ' + votes + ' | Director: ' + director + ' | Duracion: ' + duration + ' | Generos: ' + genres + ' | Sinopsis: ' + synopsis + (ai.recomendacion ? ' | IA: ' + ai.recomendacion : '') + (ai.para_ver_con ? ' | Para ver con: ' + ai.para_ver_con : '') + (url ? ' | IMDb: ' + url : ''), datos };\n}\n\nconst for_cache = Object.assign({}, datos, { _cache_key: d.cache_key });\nconst cache_json = JSON.stringify(for_cache);\nreturn [{ json: Object.assign({}, buildReply(command, datos), { for_cache, cache_json }) }];"
+      },
+      "id": "fn-prepare",
+      "name": "Preparar Datos",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        3760,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($node[\"Preparar Datos\"].json) }}"
+      },
+      "id": "rsp-approved",
+      "name": "Responder Aprobada",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        3980,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.API_BASE_URL}}/pelicula/cache",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "string",
+        "body": "={{$json.cache_json}}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      },
+      "id": "http-save-cache",
+      "name": "Guardar en Cache",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        3980,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'error', decision: 'REJECT', message: $json['error_msg'] || 'Error al obtener datos de IMDb', titulo: $json['titulo'] }) }}"
+      },
+      "id": "rsp-rejected",
+      "name": "Responder Rechazada",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        3760,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
+        "text": "=📥 *[n8n]* Pelicula guardada en cache\n\n*{{$node[\"Preparar Datos\"].json[\"datos\"][\"ai_vibra\"]}} {{$node[\"Preparar Datos\"].json[\"datos\"][\"title\"]}}*\n⭐ {{$node[\"Preparar Datos\"].json[\"datos\"][\"rating\"]}}/10 | 🎬 {{$node[\"Preparar Datos\"].json[\"datos\"][\"director\"]}}\n\n🤖 _{{$node[\"Preparar Datos\"].json[\"datos\"][\"ai_recomendacion\"]}}_\n👥 Para ver con: {{$node[\"Preparar Datos\"].json[\"datos\"][\"ai_para_ver_con\"]}}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "tg-ok",
+      "name": "Telegram Aprobada",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        4200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
+        "text": "=❌ *[n8n]* Pelicula rechazada (scrape fallido)\n\n*{{$json[\"titulo\"]}}*\nRazon: {{$json[\"error_msg\"] || 'No encontrada en IMDb'}}",
+        "additionalFields": {}
+      },
+      "id": "tg-ko",
+      "name": "Telegram Rechazada",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        3980,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar": {
+      "main": [
+        [
+          {
+            "node": "Titulo valido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Titulo valido": {
+      "main": [
+        [
+          {
+            "node": "Verificar Cache",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder Error Validacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Cache": {
+      "main": [
+        [
+          {
+            "node": "Evaluar Cache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluar Cache": {
+      "main": [
+        [
+          {
+            "node": "Esta en cache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esta en cache": {
+      "main": [
+        [
+          {
+            "node": "Responder Cache",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Construir Guardrail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder Cache": {
+      "main": [
+        [
+          {
+            "node": "Telegram Cache Hit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construir Guardrail": {
+      "main": [
+        [
+          {
+            "node": "Groq Guardrail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Guardrail": {
+      "main": [
+        [
+          {
+            "node": "Parsear Guardrail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear Guardrail": {
+      "main": [
+        [
+          {
+            "node": "Guardrail OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardrail OK": {
+      "main": [
+        [
+          {
+            "node": "Scrape IMDb",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder Guardrail Rechazado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder Guardrail Rechazado": {
+      "main": [
+        [
+          {
+            "node": "Telegram Guardrail Rechazado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape IMDb": {
+      "main": [
+        [
+          {
+            "node": "Procesar Scrape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar Scrape": {
+      "main": [
+        [
+          {
+            "node": "Scrape exitoso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape exitoso": {
+      "main": [
+        [
+          {
+            "node": "Groq LLM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parsear LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq LLM": {
+      "main": [
+        [
+          {
+            "node": "Parsear LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear LLM": {
+      "main": [
+        [
+          {
+            "node": "Aprobar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aprobar": {
+      "main": [
+        [
+          {
+            "node": "Preparar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder Rechazada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Datos": {
+      "main": [
+        [
+          {
+            "node": "Responder Aprobada",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Guardar en Cache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar en Cache": {
+      "main": [
+        [
+          {
+            "node": "Telegram Aprobada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder Rechazada": {
+      "main": [
+        [
+          {
+            "node": "Telegram Rechazada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "timezone": "Europe/Madrid"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "movies"
+    },
+    {
+      "name": "guardrails"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "content-type": "application/json"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "titulo": "Inception",
+            "source": "telegram"
+          },
+          "webhookUrl": "http://localhost:5678/webhook/pelicula-guardrail",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "versionId": "13",
+  "id": "peliculas-bot-v2",
+  "meta": {
+    "instanceId": "peliculas-bot-v2"
+  }
+}
